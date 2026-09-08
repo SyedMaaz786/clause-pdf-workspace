@@ -93,21 +93,25 @@ video shows them populated.</sub>
 flowchart LR
   B["Browser<br/>React 19 RSC · pdf.js viewer"]
 
-  subgraph CF["Cloudflare Worker (worker/index.ts)"]
+  subgraph CF["Cloudflare Worker"]
     APP["vinext app router"]
-    API["/api/* &nbsp;·&nbsp; lib/server/api.ts<br/>routing · zod validation · rate limits"]
-    AUTH["security.ts<br/>bcrypt · sessions · CSRF · authorize()"]
+    API["api.ts<br/>routing · zod validation · rate limits"]
+    AUTH["security.ts<br/>bcrypt · sessions · CSRF · authorize"]
     DOC["documents.ts<br/>extract · chunk · map-reduce summary"]
     RET["retrieval.ts<br/>BM25 · segmentation"]
-    AICL["ai.ts<br/>Gemini client + SSE decoder"]
-    APP --> API --> AUTH & DOC & RET & AICL
+    AICL["ai.ts<br/>Gemini client · SSE decoder"]
+    APP --> API
+    API --> AUTH
+    API --> DOC
+    API --> RET
+    API --> AICL
   end
 
-  B -->|HTTPS · same-origin cookies| APP
-  API --> D1[("D1 / SQLite<br/>users · sessions · documents<br/>chunks · shares · comments · messages")]
+  B -->|"HTTPS · same-origin cookies"| APP
+  API --> D1[("D1 SQLite<br/>users · sessions · documents<br/>chunks · shares · comments · messages")]
   DOC --> R2[("R2<br/>PDF bytes")]
-  AICL -->|generateContent · embedContent · streamGenerateContent| G["Google Gemini API"]
-  API -->|invite email| RS["Resend API"]
+  AICL -->|"generate · embed · stream"| G["Google Gemini API"]
+  API -->|"invite email"| RS["Resend API"]
 ```
 
 **Upload → summary.** `POST /api/documents` validates the file, extracts text
