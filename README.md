@@ -399,6 +399,7 @@ npm run lint        # eslint
 npm test            # domain unit tests + API integration suite
 npm run eval        # live AI answer-quality eval (needs GEMINI_API_KEY)
 npx playwright test # end-to-end browser flows (desktop + mobile)
+npm run video       # records the walkthrough → clause-walkthrough.webm
 ```
 
 | Suite | Runner | Covers |
@@ -407,6 +408,7 @@ npx playwright test # end-to-end browser flows (desktop + mobile)
 | `tests/api.test.mjs` | Miniflare + esbuild | 14 end-to-end scenarios — auth, bcrypt storage, CSRF, PDF validation, owner-only access, summary persistence, semantic search isolation, hashed share tokens, guest comments & threads, streaming chat with 5-turn history, quota-error honesty, revocation, single-use resets, cascading delete. AI responses are fixtures. |
 | `tests/eval/run.mjs` | Miniflare + **real Gemini** | grounding, citation accuracy, refusal honesty (see [eval harness](#measuring-answer-quality--the-eval-harness)) |
 | `tests/browser/workflow.spec.ts` | Playwright | full desktop flow (register → upload → view → comment → share → guest → revoke) and mobile flow, with screenshots and a zero-console-error assertion |
+| `tests/video/walkthrough.spec.ts` | Playwright | one continuous journey against real Gemini, recorded as a video; set `PLAYWRIGHT_BASE_URL` to record against a deployment |
 
 ---
 
