@@ -412,13 +412,16 @@ npx wrangler login
 npx wrangler d1 create clause-db          # note the printed database_id
 npx wrangler r2 bucket create clause-files
 npx wrangler d1 execute clause-db --remote --file drizzle/0000_medical_betty_ross.sql
-npx wrangler secret put GEMINI_API_KEY --name clause      # + RESEND_API_KEY if using email
 
-# set these (shell env or a git-ignored .dev.vars), then deploy:
+# set these (shell env or a git-ignored .dev.vars):
 #   CF_D1_ID=<database_id from above>   (required)
 #   CF_WORKER_NAME=clause  CF_D1_NAME=clause-db  CF_R2_BUCKET=clause-files
 #   APP_URL=https://clause.<your-subdomain>.workers.dev
-npm run deploy:cf
+npm run deploy:cf                          # first deploy — creates the Worker
+
+# now attach the API key(s); secrets apply live, no redeploy needed
+npx wrangler secret put GEMINI_API_KEY --name clause
+npx wrangler secret put RESEND_API_KEY --name clause     # optional, for share emails
 ```
 
 Non-secret config (`APP_URL`, model names, `EMAIL_FROM`) is written as plain
