@@ -4,10 +4,17 @@
 // EVAL_THRESHOLD so it can gate CI. `EVAL_DELAY_MS` spaces calls for free-tier RPM.
 import assert from 'node:assert/strict';
 import { readFile, mkdir } from 'node:fs/promises';
+import { existsSync, readFileSync } from 'node:fs';
 import { build } from 'esbuild';
 import { Miniflare } from 'miniflare';
 import { scoreItem, aggregate } from './score.mjs';
 
+if (existsSync('.dev.vars')) {
+  for (const line of readFileSync('.dev.vars', 'utf8').split('\n')) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+  }
+}
 const KEY = process.env.GEMINI_API_KEY;
 if (!KEY) {
   console.log('\n  Set GEMINI_API_KEY to run the live AI eval (skipped).');
