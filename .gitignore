@@ -58,3 +58,4 @@ playwright-report/
 public/pdf.worker.min.mjs
 *.tsbuildinfo
 *.tar.gz
+clause-walkthrough*.webm

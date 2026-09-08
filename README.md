@@ -7,8 +7,8 @@ account, and review it together with threaded comments.
 > **Live demo:** _<add your deployed URL here>_
 > **Walkthrough video:** _<add your Loom link here>_
 
-Built for the SpotDraft AI Intern take-home. Every must-have **and** every
-good-to-have feature is implemented and covered by tests.
+Built for the SpotDraft AI Intern take-home — the required features plus all
+five optional ones, with a test suite that covers them.
 
 ![Sign in](docs/screenshots/01-auth.png)
 
@@ -172,8 +172,9 @@ Thinking budget is disabled for latency; the work is retrieval, not reasoning.
    the document for semantic search. Embedding failure is non-fatal (search
    degrades to filename matching for that document).
 
-Each `POST /process` executes **exactly one** of these stages, then releases its
-lease (`lease_until`). This is the key long-document decision — see below.
+One `POST /process` call runs **one** map stage, or the final reduce +
+validate + embed stage, then releases its lease (`lease_until`) — the key
+long-document decision (see below).
 
 ### Chat pipeline
 
@@ -398,43 +399,39 @@ npx playwright test # end-to-end browser flows (desktop + mobile)
 
 ## Deployment
 
-The app is a standard Cloudflare Worker with a D1 binding and an R2 binding, so
-it runs on Cloudflare's global edge — the deployed URL is fast from anywhere and
-needs no region configuration.
+Runs on **Cloudflare Workers** (free tier is enough), so the deployed URL is
+served from Cloudflare's global edge with no region configuration. Free-tier
+D1 and R2 back it.
 
-### Deploy to your own Cloudflare account
+### One command
 
-`npm run deploy:cf` builds, rewrites the emitted `dist/server/wrangler.json` with
-your resource names, and runs `wrangler deploy`.
+Set these (shell env, or a git-ignored `.dev.vars`) and run `npm run deploy:cf`:
 
-```bash
-npx wrangler login
-npx wrangler d1 create clause-db          # note the printed database_id
-npx wrangler r2 bucket create clause-files
-npx wrangler d1 execute clause-db --remote --file drizzle/0000_medical_betty_ross.sql
+| Variable | | |
+|---|---|---|
+| `CLOUDFLARE_API_TOKEN` | required | token with **Workers Scripts**, **D1**, and **R2 Storage** = *Edit* ([create one](https://dash.cloudflare.com/profile/api-tokens)) |
+| `CLOUDFLARE_ACCOUNT_ID` | required | from the Cloudflare dashboard URL / Workers overview |
+| `GEMINI_API_KEY` | required | set as a Worker **secret**, never a var |
+| `RESEND_API_KEY`, `EMAIL_FROM` | optional | enables share-invite emails |
+| `APP_URL` | optional | defaults to the deployed `*.workers.dev` origin |
+| `CF_WORKER_NAME` `CF_D1_NAME` `CF_R2_BUCKET` | optional | default `clause` / `clause-db` / `clause-files` |
 
-# set these (shell env or a git-ignored .dev.vars):
-#   CF_D1_ID=<database_id from above>   (required)
-#   CF_WORKER_NAME=clause  CF_D1_NAME=clause-db  CF_R2_BUCKET=clause-files
-#   APP_URL=https://clause.<your-subdomain>.workers.dev
-npm run deploy:cf                          # first deploy — creates the Worker
+[`scripts/deploy-cloudflare.mjs`](scripts/deploy-cloudflare.mjs) then builds,
+creates the D1 database and R2 bucket if they don't exist, applies the schema on
+the first run, `wrangler deploy`s, and pushes `GEMINI_API_KEY` (and
+`RESEND_API_KEY`) as Worker secrets. Re-running it redeploys; the schema step is
+skipped once the tables exist.
 
-# now attach the API key(s); secrets apply live, no redeploy needed
-npx wrangler secret put GEMINI_API_KEY --name clause
-npx wrangler secret put RESEND_API_KEY --name clause     # optional, for share emails
-```
-
-Non-secret config (`APP_URL`, model names, `EMAIL_FROM`) is written as plain
-Worker `vars`; API keys stay as `wrangler secret` and are never written to a file.
-The deploy script is [`scripts/deploy-cloudflare.mjs`](scripts/deploy-cloudflare.mjs).
+If you'd rather create the resources yourself, `npx wrangler login`, then
+`wrangler d1 create` / `wrangler r2 bucket create` with the names above — the
+deploy script picks up whatever already exists.
 
 ### Managed hosting
 
 `.openai/hosting.json` also lets the project deploy through a managed host that
-provisions the D1/R2 resources and applies migrations from the build output
-(`npm run build` emits `dist/` with the Worker, the hosting manifest and the
-Drizzle SQL). Runtime variables (`GEMINI_API_KEY`, etc.) are set in that host's
-project settings rather than via `wrangler secret`.
+provisions the D1/R2 resources and applies migrations from `npm run build`'s
+output. Runtime variables are set in that host's project settings instead of via
+`wrangler secret`.
 
 ---
 

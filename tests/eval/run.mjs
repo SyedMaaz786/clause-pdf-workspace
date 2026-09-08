@@ -1,19 +1,7 @@
-/**
- * Live AI answer-quality eval.
- *
- * Spins up the real API worker in Miniflare, talks to the *real* Gemini API,
- * uploads the bundled sample contract, and asks a fixed question set. Each
- * answer is scored for grounding (does it cite the right page?), factual
- * accuracy (does it contain the expected value?), and honesty (does it decline
- * when the document is silent?). See tests/eval/dataset.json.
- *
- * Usage:
- *   GEMINI_API_KEY=...  npm run eval
- *   (optional) EVAL_DELAY_MS=4500  spacing between calls for free-tier RPM limits
- *
- * Exit code is non-zero if the pass rate drops below EVAL_THRESHOLD (default 0.85),
- * so it can gate CI once a key is available.
- */
+// Live answer-quality eval: runs the real API worker in Miniflare against the
+// real Gemini API, uploads the sample contract, and scores answers on the fixed
+// question set in dataset.json. Needs GEMINI_API_KEY. Exits non-zero below
+// EVAL_THRESHOLD so it can gate CI. `EVAL_DELAY_MS` spaces calls for free-tier RPM.
 import assert from 'node:assert/strict';
 import { readFile, mkdir } from 'node:fs/promises';
 import { build } from 'esbuild';
@@ -22,13 +10,13 @@ import { scoreItem, aggregate } from './score.mjs';
 
 const KEY = process.env.GEMINI_API_KEY;
 if (!KEY) {
-  console.log('\n  ⓘ  Set GEMINI_API_KEY to run the live AI eval (skipped).');
-  console.log('     e.g.  GEMINI_API_KEY=your-key npm run eval\n');
+  console.log('\n  Set GEMINI_API_KEY to run the live AI eval (skipped).');
+  console.log('  e.g.  GEMINI_API_KEY=your-key npm run eval\n');
   process.exit(0);
 }
 const DELAY = Number(process.env.EVAL_DELAY_MS || 4500);
 const THRESHOLD = Number(process.env.EVAL_THRESHOLD || 0.85);
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 await mkdir('artifacts', { recursive: true });
 await build({

@@ -12,6 +12,7 @@
     "start": "vinext start",
     "test": "tsx --test tests/domain/*.test.ts && node tests/api.test.mjs",
     "eval": "node tests/eval/run.mjs",
+    "video": "playwright test --config playwright.video.config.ts && node scripts/lift-video.mjs",
     "lint": "eslint app components/clause lib worker scripts tests --ignore-pattern dist",
     "db:generate": "drizzle-kit generate",
     "typecheck": "tsc --noEmit",
