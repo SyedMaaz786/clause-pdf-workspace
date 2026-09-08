@@ -1,0 +1,92 @@
+Recorded run of `npm run eval` — 2026-09-08, Google AI Studio free tier,
+gemini-2.5-flash. 17 of 18 questions completed before the free-tier rate limit
+was exhausted on the final item (a third refusal case); every completed item
+passed every check.
+
+  analyzing document. ready
+
+  ✓  parties                  5/5
+      Q: Who are the two parties to this agreement?
+      A: The two parties to this agreement are Northstar Labs, Inc. (Client) and Meridian Studio LLC (Provider) [p. 1].
+
+  ✓  timeline                 5/5
+      Q: When does the project start and when is it due to finish?
+      A: The project starts on September 15, 2026, and is due to finish on December 15, 2026 [p. 1].
+
+  ✓  feedback-window          4/4
+      Q: How quickly must the client return feedback?
+      A: The Client must provide consolidated feedback within five business days [p. 1].
+
+  ✓  scope-change             5/5
+      Q: Can the scope be changed with a phone call?
+      A: No, the scope cannot be changed with a phone call. Additional work requires a written change order
+         approved by both parties, and verbal requests do not change the agreed scope [p. 1].
+
+  ✓  total-fee                4/4
+      Q: What is the total fee for the project?
+      A: The total fixed project fee is USD 48,000 [p. 2].
+
+  ✓  payment-schedule         6/6
+      Q: How is that fee split into installments?
+      A: The fee is split into three installments: 40% (USD 19,200) on signing [p. 2]. 30% (USD 14,400) on
+         design approval [p. 2]. 30% (USD 14,400) on final delivery [p. 2].
+
+  ✓  acceptance-window        4/4
+      Q: How long does the client have to flag problems with a deliverable after delivery?
+      A: The Client has ten business days after delivery to identify material deviations from the approved
+         scope in writing [p. 2].
+
+  ✓  confidentiality-duration 4/4
+      Q: How long do the confidentiality obligations last after the contract ends?
+      A: The confidentiality obligations continue for two years after termination of the agreement [p. 2].
+
+  ✓  ip-ownership             4/4
+      Q: Who owns the deliverables, and when does that ownership transfer?
+      A: Upon full payment, the Client owns the project-specific deliverables [p. 2]. The Provider retains
+         ownership of pre-existing tools, libraries, and methods, and grants the Client a perpetual,
+         non-exclusive license…
+
+  ✓  termination-notice       4/4
+      Q: How much notice does a party need to give to terminate for convenience?
+      A: Either party may terminate this agreement with 30 days of written notice [p. 3].
+
+  ✓  liability-cap            4/4
+      Q: Is there a cap on liability, and are there any carve-outs?
+      A: Yes, there is a cap on liability. Each party's aggregate liability is capped at the total fees paid
+         under this agreement [p. 3]. This cap does not apply to fraud, willful misconduct, or breach of
+         confidentiality…
+
+  ✓  governing-law            4/4
+      Q: Which jurisdiction's law governs this agreement?
+      A: This agreement is governed by the laws of New York [p. 3].
+
+  ✓  data-deletion            4/4
+      Q: What happens to the client's data after the engagement ends?
+      A: The Provider will delete Client data within 30 days of final handover unless retention is required
+         by law [p. 3].
+
+  ✓  memory-followup          4/4
+      Q: What is the termination notice period?  →  And does anything in the contract survive that termination?
+      A: Yes, the confidentiality and intellectual property provisions survive termination [p. 3].
+
+  ✓  memory-followup-numeric  4/4
+      Q: What is the total project fee?  →  How much of that is due at signing?
+      A: 40% (USD 19,200) of the total fixed project fee is due on signing [p. 2].
+
+  ✓  refuse-weather           2/2
+      Q: What will the weather be like in New York next week?
+      A: I couldn't find that in this document.
+
+  ✓  refuse-noncompete        2/2
+      Q: Does this agreement include a non-compete or non-solicitation clause?
+      A: I couldn't find that in this document.
+
+  –  refuse-subscription-price   skipped (provider rate limit)
+
+  ─────────────────────────────────────────────
+  Items passed        17/17   (1 skipped — provider rate limit)
+  Grounding rate      100%    (15/15 grounded answers cite the right page and contain the expected fact)
+  Citation accuracy   100%    (every [p. N] falls on the page that actually states the fact)
+  Fact accuracy       100%
+  Honesty rate        100%    (2/2 completed refusal checks — declined instead of inventing an answer)
+  ─────────────────────────────────────────────

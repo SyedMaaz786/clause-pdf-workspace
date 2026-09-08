@@ -279,9 +279,19 @@ scored (`tests/eval/score.mjs`) for:
 | **Grounding rate** | share of grounded questions that pass every check |
 | **Honesty rate** | share of unanswerable questions the model *declines* instead of inventing an answer |
 
+Recorded run (`gemini-2.5-flash`, Google AI Studio free tier — full log in
+[`tests/eval/sample-run.txt`](tests/eval/sample-run.txt)):
+
+```
+Items passed        17/17   (1 skipped — free-tier rate limit hit the last item)
+Grounding rate      100%    (15/15 grounded answers cite the right page and the expected fact)
+Citation accuracy   100%
+Honesty rate        100%    (declines instead of inventing an answer)
+```
+
 The scorer is itself unit-tested (`tests/domain/eval-scoring.test.ts`), and the
-run exits non-zero below an 85 % pass rate so it can gate CI once a key is
-available.
+run exits non-zero below an 85 % pass rate so it can gate CI. Space calls with
+`EVAL_DELAY_MS` on a rate-limited key.
 
 ---
 
