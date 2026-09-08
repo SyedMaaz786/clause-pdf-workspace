@@ -89,11 +89,18 @@ try {
   assert.equal(status, 'ready', 'document did not reach ready state');
   console.log(' ready\n');
 
-  const ask = async (question) => {
+  const ask = async (question, attempt = 0) => {
     const res = await mf.dispatchFetch(`${origin}/api/documents/${docId}/chat`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Origin: origin, Cookie: cookie, 'cf-connecting-ip': '192.0.2.9' },
       body: JSON.stringify({ question }),
     });
+    if ((res.status === 429 || res.status === 503) && attempt < 4) {
+      const wait = DELAY * (attempt + 2);
+      console.log(`      (provider busy — retrying in ${wait / 1000}s)`);
+      await sleep(wait);
+      return ask(question, attempt + 1);
+    }
+    if (res.status === 429 || res.status === 503) return { rateLimited: true, answer: '', sources: [] };
     if (res.status !== 200) throw new Error(`chat ${res.status}: ${await res.text()}`);
     let answer = '', sources = [], citationWarning = false;
     for (const line of (await res.text()).trim().split('\n')) {
@@ -108,33 +115,34 @@ try {
   };
 
   const { items } = JSON.parse(await readFile('tests/eval/dataset.json', 'utf8'));
-  const scores = [];
+  const ran = [], scores = [];
+  let skipped = 0;
   for (const item of items) {
     let result = await ask(item.question);
-    for (const follow of item.followUps || []) { await sleep(DELAY); result = await ask(follow); }
+    for (const follow of item.followUps || []) { if (result.rateLimited) break; await sleep(DELAY); result = await ask(follow); }
+    if (result.rateLimited) { skipped++; console.log(`  –  ${item.id.padEnd(24)} skipped (provider rate limit)\n`); await sleep(DELAY); continue; }
     const score = scoreItem(item, result);
-    scores.push(score);
-    const mark = score.ok ? '✓' : '✗';
+    ran.push(item); scores.push(score);
     const turns = [item.question, ...(item.followUps || [])].join('  →  ');
-    console.log(`  ${mark}  ${item.id.padEnd(24)} ${score.passed}/${score.total}`);
+    console.log(`  ${score.ok ? '✓' : '✗'}  ${item.id.padEnd(24)} ${score.passed}/${score.total}`);
     console.log(`      Q: ${turns}`);
     console.log(`      A: ${result.answer.replace(/\s+/g, ' ').slice(0, 200)}${result.answer.length > 200 ? '…' : ''}`);
-    for (const c of score.checks.filter((c) => !c.pass)) console.log(`      ✗ ${c.label}`);
+    for (const c of score.checks.filter(c => !c.pass)) console.log(`      ✗ ${c.label}`);
     console.log();
     await sleep(DELAY);
   }
 
-  const a = aggregate(items, scores);
-  const pct = (n) => `${(n * 100).toFixed(0)}%`;
+  const a = aggregate(ran, scores);
+  const pct = n => `${(n * 100).toFixed(0)}%`;
   console.log('  ─────────────────────────────────────────────');
-  console.log(`  Items passed        ${a.passed}/${a.total}`);
+  console.log(`  Items passed        ${a.passed}/${a.total}${skipped ? `   (${skipped} skipped — provider rate limit)` : ''}`);
   console.log(`  Grounding rate      ${pct(a.groundingRate)}   (grounded answers that cite the right page + expected fact)`);
   console.log(`  Citation accuracy   ${pct(a.citationAccuracy)}   (expected page appears in the answer's citations)`);
   console.log(`  Fact accuracy       ${pct(a.factAccuracy)}   (expected value present in the answer)`);
   console.log(`  Honesty rate        ${pct(a.honestyRate)}   (declines when the document is silent — ${a.refusalPass}/${a.refusalItems})`);
   console.log('  ─────────────────────────────────────────────\n');
 
-  const overall = a.passed / a.total;
+  const overall = a.total ? a.passed / a.total : 0;
   if (overall < THRESHOLD) {
     console.error(`  ✗ pass rate ${pct(overall)} is below threshold ${pct(THRESHOLD)}\n`);
     process.exitCode = 1;
