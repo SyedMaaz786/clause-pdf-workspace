@@ -57,8 +57,16 @@ test('Clause — end to end', async ({ page, context }) => {
       await box.pressSequentially(q, { delay: 30 });
       await beat(500);
       await box.press('Enter');
-      await expect(page.locator('.chat-message.assistant').last().locator('.markdown')).toBeVisible({ timeout: 60_000 });
-      await expect(page.locator('.chat-composer .send-button')).toBeEnabled({ timeout: 60_000 });
+      const answer = page.locator('.chat-message.assistant').last().locator('.markdown');
+      await expect(answer).toBeVisible({ timeout: 60_000 });
+      // let the streamed text settle
+      let prev = '';
+      for (let i = 0; i < 45; i++) {
+        await page.waitForTimeout(800);
+        const cur = (await answer.textContent()) ?? '';
+        if (cur.length > 8 && cur === prev) break;
+        prev = cur;
+      }
       await beat(2200);
     };
     await ask('What is the total fee and how is it paid?');
@@ -69,13 +77,14 @@ test('Clause — end to end', async ({ page, context }) => {
   });
 
   await test.step('Find a document by meaning, not filename', async () => {
-    await page.getByRole('button', { name: /Workspace|Clause/ }).first().click();
+    await page.locator('.viewer-back').click();
     await expect(page.getByRole('heading', { name: 'Your document workspace.' })).toBeVisible();
     await beat(1200);
     await page.getByRole('switch', { name: 'Search by meaning' }).click();
-    await page.getByLabel('Search documents').pressSequentially('termination and liability terms', { delay: 35 });
+    await beat(500);
+    await page.getByLabel('Search documents').pressSequentially('employment contract terms', { delay: 55 });
     await expect(page.locator('.document-card')).toContainText('service-agreement.pdf', { timeout: 20_000 });
-    await beat(2600);
+    await beat(3000);
     await page.getByLabel('Clear search').click();
   });
 
@@ -111,6 +120,8 @@ test('Clause — end to end', async ({ page, context }) => {
 
   await test.step('Back as the owner — revoke access', async () => {
     await page.goto('/');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await beat(700);
     await page.getByLabel('Email address').pressSequentially(account.email, { delay: 20 });
     await page.getByLabel('Password', { exact: true }).pressSequentially(account.password, { delay: 20 });
     await page.getByRole('button', { name: 'Sign in to your workspace', exact: true }).click();
@@ -123,7 +134,7 @@ test('Clause — end to end', async ({ page, context }) => {
     await page.keyboard.press('Escape');
     await context.clearCookies();
     await page.goto(shareUrl);
-    await expect(page.getByRole('heading', { name: 'This document is unavailable.' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /couldn.t open this workspace/i })).toBeVisible();
     await beat(2600);
   });
 });

@@ -153,6 +153,9 @@ retrieval, framework-free and unit-tested).
 
 Low temperature throughout — this is an extraction task, not a creative one.
 Thinking budget is disabled for latency; the work is retrieval, not reasoning.
+The chat/summary model is one env var (`GEMINI_MODEL`) — the recorded eval used
+`gemini-2.5-flash`; the public demo runs `gemini-2.5-flash-lite` to stay well
+inside the free tier while reviewers try it.
 
 ### Summary pipeline
 

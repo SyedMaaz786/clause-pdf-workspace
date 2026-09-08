@@ -14,7 +14,8 @@ export default defineConfig({
   expect: { timeout: 30_000 },
   reporter: [['list']],
   use: {
-    baseURL: remote || 'http://127.0.0.1:5173',
+    // matches APP_URL in .dev.vars so share links stay same-origin through the run
+    baseURL: remote || 'http://localhost:5173',
     viewport: { width: 1440, height: 900 },
     video: { mode: 'on', size: { width: 1440, height: 900 } },
     trace: 'retain-on-failure',
@@ -22,7 +23,7 @@ export default defineConfig({
   ...(remote ? {} : {
     webServer: {
       command: 'npm run dev',
-      url: 'http://127.0.0.1:5173',
+      url: 'http://localhost:5173',
       timeout: 180_000,
       reuseExistingServer: true,
     },
