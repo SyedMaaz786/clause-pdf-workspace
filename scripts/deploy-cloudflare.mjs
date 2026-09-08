@@ -10,9 +10,11 @@
 //   RESEND_API_KEY         optional  (share-invite emails)
 //   EMAIL_FROM, APP_URL    optional  (APP_URL defaults to the deployed URL)
 //   CF_WORKER_NAME=clause  CF_D1_NAME=clause-db  CF_R2_BUCKET=clause-files
+//   CF_SUBDOMAIN          optional  (a workers.dev subdomain is registered if none exists)
 //   GEMINI_MODEL, GEMINI_EMBEDDING_MODEL  optional model overrides
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
 
 if (existsSync('.dev.vars')) {
   for (const line of readFileSync('.dev.vars', 'utf8').split('\n')) {
@@ -29,11 +31,19 @@ const d1Name = env.CF_D1_NAME || 'clause-db';
 const r2Name = env.CF_R2_BUCKET || 'clause-files';
 // A local APP_URL (from .dev.vars) is meaningless in production — let the deploy fill it in.
 const appUrlEnv = /localhost|127\.0\.0\.1/.test(env.APP_URL || '') ? '' : env.APP_URL;
-const wrangler = (args, opts = {}) => execFileSync('npx', ['wrangler', ...args], { shell: process.platform === 'win32', encoding: 'utf8', stdio: ['pipe', 'pipe', 'inherit'], ...opts });
+// Call wrangler through Node directly — avoids a shell and its Windows quirks.
+const wranglerBin = createRequire(import.meta.url).resolve('wrangler/bin/wrangler.js');
+const wrangler = (args, opts = {}) => execFileSync(process.execPath, [wranglerBin, ...args], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'inherit'], ...opts });
 const step = msg => console.log(`\n> ${msg}`);
+const cfApi = (path, init) => fetch(`https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}${path}`,
+  { ...init, headers: { Authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}`, 'Content-Type': 'application/json', ...init?.headers } }).then(r => r.json());
 
 step('Building');
 execFileSync('npm', ['run', 'build'], { shell: process.platform === 'win32', stdio: 'inherit' });
+// vinext writes .wrangler/deploy/config.json pointing at dist/server/wrangler.json; if
+// wrangler also finds a config from its cwd the two conflict, so clear it and deploy
+// with an explicit --config from the repo root.
+rmSync('.wrangler/deploy', { recursive: true, force: true });
 
 step(`Ensuring D1 database "${d1Name}"`);
 let dbs = JSON.parse(wrangler(['d1', 'list', '--json']) || '[]');
@@ -43,6 +53,16 @@ if (!dbs.some(d => d.name === d1Name)) {
 }
 const d1Id = dbs.find(d => d.name === d1Name)?.uuid;
 if (!d1Id) { console.error('Could not resolve the D1 database id.'); process.exit(1); }
+
+step('Ensuring a workers.dev subdomain');
+const sub = await cfApi('/workers/subdomain');
+if (sub.success && sub.result?.subdomain) console.log(`  ${sub.result.subdomain}.workers.dev`);
+else {
+  const name = (env.CF_SUBDOMAIN || `${worker}-${env.CLOUDFLARE_ACCOUNT_ID.slice(0, 8)}`).toLowerCase().replace(/[^a-z0-9-]/g, '');
+  const made = await cfApi('/workers/subdomain', { method: 'PUT', body: JSON.stringify({ subdomain: name }) });
+  if (!made.success) { console.error('  Could not register a workers.dev subdomain:', JSON.stringify(made.errors)); process.exit(1); }
+  console.log(`  registered ${made.result.subdomain}.workers.dev`);
+}
 
 step('Checking for R2');
 let useR2 = false;
@@ -76,7 +96,7 @@ const patch = appUrl => {
   };
   writeFileSync('dist/server/wrangler.json', JSON.stringify(cfg, null, 2));
 };
-const deploy = () => wrangler(['deploy'], { cwd: 'dist/server' });
+const deploy = () => wrangler(['deploy', '--config', 'dist/server/wrangler.json']);
 
 step('Deploying');
 patch(appUrlEnv);

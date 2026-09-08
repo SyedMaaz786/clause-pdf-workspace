@@ -4,8 +4,8 @@ Upload a PDF, get a source-grounded AI summary, ask questions in a chat that
 cites the page it answered from, share the document with a link that needs no
 account, and review it together with threaded comments.
 
-> **Live demo:** _<add your deployed URL here>_
-> **Walkthrough video:** _<add your Loom link here>_
+> **Live demo:** https://clause.syedmaaz786.workers.dev
+> **Walkthrough video:** _<add your Loom link here>_ · a recorded end-to-end run is in [`clause-walkthrough.webm`](clause-walkthrough.webm) / `npm run video`
 
 Built for the SpotDraft AI Intern take-home — the required features plus all
 five optional ones, with a test suite that covers them.
