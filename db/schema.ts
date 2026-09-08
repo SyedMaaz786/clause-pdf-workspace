@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, index, uniqueIndex, blob, primaryKey } from 'drizzle-orm/sqlite-core';
 
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(), name: text('name').notNull(), email: text('email').notNull(),
@@ -44,3 +44,7 @@ export const passwordResets = sqliteTable('password_resets', {
 export const rateLimits = sqliteTable('rate_limits', {
   key: text('key').primaryKey(), count: integer('count').notNull(), expiresAt: integer('expires_at').notNull(),
 });
+// PDF bytes when no R2 bucket is bound; split across rows to stay under D1's 2 MB value cap.
+export const blobs = sqliteTable('blobs', {
+  key: text('key').notNull(), ordinal: integer('ordinal').notNull(), bytes: blob('bytes', { mode: 'buffer' }).notNull(),
+}, t => [primaryKey({ columns: [t.key, t.ordinal] })]);

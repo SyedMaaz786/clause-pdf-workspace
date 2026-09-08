@@ -8,6 +8,13 @@
       "when": 1788843751988,
       "tag": "0000_medical_betty_ross",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788855295518,
+      "tag": "0001_new_katie_power",
+      "breakpoints": true
     }
   ]
 }

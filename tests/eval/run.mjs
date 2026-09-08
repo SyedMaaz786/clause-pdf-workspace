@@ -3,7 +3,7 @@
 // question set in dataset.json. Needs GEMINI_API_KEY. Exits non-zero below
 // EVAL_THRESHOLD so it can gate CI. `EVAL_DELAY_MS` spaces calls for free-tier RPM.
 import assert from 'node:assert/strict';
-import { readFile, mkdir } from 'node:fs/promises';
+import { readFile, readdir, mkdir } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import { build } from 'esbuild';
 import { Miniflare } from 'miniflare';
@@ -46,8 +46,8 @@ const mf = new Miniflare({
 
 try {
   const db = await mf.getD1Database('DB');
-  for (const stmt of (await readFile('drizzle/0000_medical_betty_ross.sql', 'utf8')).split('--> statement-breakpoint').filter((s) => s.trim())) {
-    await db.prepare(stmt).run();
+  for (const file of (await readdir('drizzle')).filter(f => f.endsWith('.sql')).sort()) {
+    for (const stmt of (await readFile(`drizzle/${file}`, 'utf8')).split('--> statement-breakpoint').filter(s => s.trim())) await db.prepare(stmt).run();
   }
 
   const origin = 'https://clause.eval';

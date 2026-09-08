@@ -9,7 +9,8 @@ let lastPrompt, failProvider = false, emails = [];
 const summary = 'Northstar Labs engages Meridian Studio to deliver a customer analytics dashboard by December 15, 2026. [p. 1] The fixed fee is USD 48,000, payable in three installments. [p. 2] Either party may terminate with 30 days of written notice, and confidentiality survives for two years. [p. 3] Liability is capped at fees paid, with exceptions for fraud, willful misconduct, and confidentiality breaches. [p. 3]';
 const mf = new Miniflare({
   modules: true, scriptPath: 'artifacts/test-worker.mjs', compatibilityDate: '2026-04-01', compatibilityFlags: ['nodejs_compat'],
-  d1Databases: ['DB'], r2Buckets: ['BUCKET'], bindings: { GEMINI_API_KEY: 'test-provider-key', RESEND_API_KEY: 'test-email-key', EMAIL_FROM: 'Clause <test@example.com>', APP_URL: 'https://clause.test' },
+  // No R2 binding: exercises the D1-backed PDF storage path (lib/server/storage.ts).
+  d1Databases: ['DB'], bindings: { GEMINI_API_KEY: 'test-provider-key', RESEND_API_KEY: 'test-email-key', EMAIL_FROM: 'Clause <test@example.com>', APP_URL: 'https://clause.test' },
   outboundService: async request => {
     const url = new URL(request.url), payload = await request.json();
     if (url.hostname === 'api.resend.com') { emails.push(payload); return Response.json({ id: 'test-email' }); }
@@ -63,15 +64,20 @@ try {
   assert.equal((await upload('%PDF-1.7 not valid content')).status, 400);
   assert.equal((await upload('%PDF-1.7 x', 'malware.txt', owner.cookie, 'text/plain')).status, 400);
   pass('extension, MIME type, magic bytes, and malformed PDF validation');
-  const uploaded = await upload(await readFile('public/samples/service-agreement.pdf'));
+  const pdfBytes = await readFile('public/samples/service-agreement.pdf');
+  const uploaded = await upload(pdfBytes);
   assert.equal(uploaded.status, 201, JSON.stringify(uploaded.data)); const doc = uploaded.data.document;
   assert.equal(doc.page_count, 3); assert.equal(doc.status, 'pending');
   assert.equal((await call(`/api/documents/${doc.id}`, { cookie: stranger.cookie })).status, 404);
   assert.equal((await call(`/api/documents/${doc.id}/file`, { cookie: stranger.cookie })).status, 404);
   assert.equal((await call(`/api/documents/${doc.id}/comments`, { cookie: stranger.cookie })).status, 404);
   assert.equal((await call(`/api/documents/${doc.id}/chat`, { cookie: stranger.cookie })).status, 404);
-  assert.equal((await call(`/api/documents/${doc.id}/file`, { cookie: owner.cookie })).status, 200);
-  pass('real PDF extraction and owner-only access across file, metadata, comments, and chat');
+  const served = await call(`/api/documents/${doc.id}/file`, { cookie: owner.cookie });
+  assert.equal(served.status, 200);
+  // round-trips through D1 blob storage, byte-for-byte
+  assert.deepEqual(new Uint8Array(served.data), new Uint8Array(pdfBytes));
+  assert.ok((await db.prepare('SELECT COUNT(*) AS n FROM blobs WHERE key = ?').bind(`${owner.user.id}/${doc.id}.pdf`).first()).n >= 1);
+  pass('real PDF extraction, D1 byte-exact file storage, and owner-only access');
   const processed = await call(`/api/documents/${doc.id}/process`, { method: 'POST', cookie: owner.cookie, data: {} });
   assert.equal(processed.status, 200, JSON.stringify(processed.data)); assert.equal(processed.data.document.status, 'ready'); assert.equal(processed.data.document.summary, summary);
   pass('automatic-analysis endpoint persists provider summary and document embedding');
@@ -123,6 +129,7 @@ try {
   assert.equal((await db.prepare('SELECT count(*) AS count FROM chunks WHERE document_id = ?').bind(doc.id).first()).count, 0);
   assert.equal((await db.prepare('SELECT count(*) AS count FROM comments WHERE document_id = ?').bind(doc.id).first()).count, 0);
   assert.equal((await db.prepare('SELECT count(*) AS count FROM messages WHERE document_id = ?').bind(doc.id).first()).count, 0);
-  pass('deletion removes stored PDF and cascades comments, chunks, shares, and chat');
+  assert.equal((await db.prepare('SELECT count(*) AS count FROM blobs WHERE key = ?').bind(`${owner.user.id}/${doc.id}.pdf`).first()).count, 0);
+  pass('deletion removes the stored PDF bytes and cascades comments, chunks, shares, and chat');
   console.log(`\n${checks} integration scenarios passed. Provider responses are controlled fixtures; this does not validate live model quality.`);
 } finally { await mf.dispose(); }

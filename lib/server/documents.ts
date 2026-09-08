@@ -2,8 +2,9 @@ import { getDocumentProxy } from 'unpdf';
 import { z } from 'zod';
 import type { Chunk } from '../contracts';
 import { chunkPages, segments } from '../retrieval';
-import { all, database, HttpError, id, now, one, run, runtime } from './runtime';
+import { all, database, HttpError, id, now, one, run } from './runtime';
 import { aiReady, embed, generate } from './ai';
+import { deleteObject, putObject } from './storage';
 
 export const PUBLIC_FIELDS = 'd.id, d.filename, d.size, d.page_count, d.created_at, d.status, d.summary, d.category, d.insights, d.error, d.process_index, d.segment_count';
 export async function getPublicDocument(documentId: string) {
@@ -37,13 +38,13 @@ export async function savePdf(ownerId: string, file: File) {
   const noText = chunks.reduce((n, c) => n + c.text.length, 0) < 40;
   const error = noText ? 'This PDF has no readable text. Upload a text-based or OCR-processed PDF to use AI.' : !aiReady() ? 'AI is not configured yet. Your PDF is safely stored.' : null;
   const count = segments(chunks).length;
-  await runtime().BUCKET.put(objectKey, bytes, { httpMetadata: { contentType: 'application/pdf' } });
+  await putObject(objectKey, bytes);
   try {
     await run('INSERT INTO documents (id, owner_id, filename, object_key, size, page_count, created_at, status, error, segment_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', documentId, ownerId, filename, objectKey, file.size, pages.length, now(), error ? 'error' : 'pending', error, count);
     for (let offset = 0; offset < chunks.length; offset += 40) {
       await database().batch(chunks.slice(offset, offset + 40).map(c => database().prepare('INSERT INTO chunks (id, document_id, page, ordinal, text) VALUES (?, ?, ?, ?, ?)').bind(`${documentId}:${c.id}`, documentId, c.page, c.ordinal, c.text)));
     }
-  } catch (error) { await run('DELETE FROM documents WHERE id = ?', documentId); await runtime().BUCKET.delete(objectKey); throw error; }
+  } catch (error) { await run('DELETE FROM documents WHERE id = ?', documentId); await deleteObject(objectKey); throw error; }
   return documentId;
 }
 const resultSchema = z.object({

@@ -3,6 +3,7 @@ import { all, body, database, HttpError, id, json, now, one, run, runtime } from
 import { authorize, checkOrigin, cookie, digest, hashPassword, limit, newSession, passwordValid, randomToken, requireUser, sessionCookie, user, verifyPassword } from './security';
 import { aiReady, embed, providerTokens, streamAnswer } from './ai';
 import { getPublicDocument, processDocument, PUBLIC_FIELDS, savePdf } from './documents';
+import { deleteObject, getObject } from './storage';
 import { cosine, retrieve } from '../retrieval';
 import { emailReady, sendEmail } from './email';
 import type { Chunk, Source } from '../contracts';
@@ -116,12 +117,12 @@ async function dispatch(request: Request): Promise<Response> {
   const owner = () => { if (!access.isOwner) throw new HttpError(403, 'Only the document owner can do this.'); };
   if (!action && method === 'GET') return json({ document: { ...await getPublicDocument(documentId) as object, isOwner: access.isOwner }, viewerName: access.name });
   if (!action && method === 'DELETE') {
-    owner(); await runtime().BUCKET.delete(String(access.doc.object_key)); await run('DELETE FROM documents WHERE id = ?', documentId); return json({ ok: true });
+    owner(); await deleteObject(String(access.doc.object_key)); await run('DELETE FROM documents WHERE id = ?', documentId); return json({ ok: true });
   }
   if (action === 'file' && method === 'GET') {
-    const object = await runtime().BUCKET.get(String(access.doc.object_key));
-    if (!object) throw new HttpError(404, 'The PDF file is unavailable.');
-    return new Response(object.body, { headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(String(access.doc.filename))}`, 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' } });
+    const bytes = await getObject(String(access.doc.object_key));
+    if (!bytes) throw new HttpError(404, 'The PDF file is unavailable.');
+    return new Response(bytes, { headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(String(access.doc.filename))}`, 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' } });
   }
   if (action === 'process' && method === 'POST') { owner(); await limit(`process:${access.actorId}`, 80, 600000); return json({ document: await processDocument(documentId) }); }
   if (action === 'shares' && method === 'GET') { owner(); return json({ shares: await all('SELECT id, label, created_at, expires_at, revoked_at FROM shares WHERE document_id = ? ORDER BY created_at DESC', documentId), emailConfigured: emailReady() }); }

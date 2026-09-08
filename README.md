@@ -78,10 +78,10 @@ video shows them populated.</sub>
 | App framework | **vinext** (React 19 Server Components, app-router) | One codebase for RSC UI **and** the API, compiles straight to a Cloudflare Worker. |
 | Runtime | **Cloudflare Workers** | Globally distributed at the edge — the deployed URL is fast everywhere with no region config. |
 | Database | **Cloudflare D1** (SQLite) + **Drizzle** | Zero-ops SQL that lives next to the Worker. Drizzle defines the schema and generates migrations; hot-path queries use a thin typed wrapper over prepared statements. |
-| Object storage | **Cloudflare R2** | PDF bytes never touch the database; streamed back with `private, no-store`. |
+| PDF byte storage | **D1** by default; **R2** if a bucket is bound | Behind a small `storage.ts` interface. D1 keeps the deploy on one free datastore (bytes chunked to stay under D1's 2 MB value cap); bind an R2 bucket as `BUCKET` and it's used instead. Served with `private, no-store`. |
 | LLM | **Google Gemini** — `gemini-2.5-flash` (summary + chat), `gemini-embedding-001` (search) | Generous free tier, fast, native SSE streaming, JSON-mode for structured summaries. |
 | PDF text | **unpdf** (server) | Pure-JS `pdf.js` build that runs inside a Worker isolate — page-by-page extraction with a bounded memory footprint. |
-| PDF rendering | **pdf.js** (`pdfjs-dist`, browser) | Canvas + selectable text layer; the raw file is proxied through the Worker so R2 stays private. |
+| PDF rendering | **pdf.js** (`pdfjs-dist`, browser) | Canvas + selectable text layer; the raw file is always proxied through the Worker with an access check, never served from a public URL. |
 | Email | **Resend** (optional) | Simple HTTP API; entirely optional. |
 | UI | shadcn/ui primitives + hand-written CSS | Accessible components, a deliberate visual identity rather than the default theme. |
 
@@ -108,15 +108,15 @@ flowchart LR
   end
 
   B -->|"HTTPS · same-origin cookies"| APP
-  API --> D1[("D1 SQLite<br/>users · sessions · documents<br/>chunks · shares · comments · messages")]
-  DOC --> R2[("R2<br/>PDF bytes")]
+  API --> D1[("D1 SQLite<br/>users · sessions · documents · chunks<br/>shares · comments · messages · PDF bytes")]
+  DOC -.->|"if a bucket is bound"| R2[("R2")]
   AICL -->|"generate · embed · stream"| G["Google Gemini API"]
   API -->|"invite email"| RS["Resend API"]
 ```
 
 **Upload → summary.** `POST /api/documents` validates the file, extracts text
-page-by-page with `unpdf`, splits it into overlapping page-aware chunks, writes
-the PDF to R2 and the chunks to D1, and returns immediately with
+page-by-page with `unpdf`, splits it into overlapping page-aware chunks, stores
+the PDF bytes and the chunks, and returns immediately with
 `status: "pending"`. The browser then polls `POST /api/documents/:id/process`,
 which performs **one** resumable stage of the map-reduce summary per call under a
 short DB lease (details below). When it returns `status: "ready"` the summary,
@@ -124,8 +124,8 @@ category, key facts and search embedding are all persisted.
 
 **Open → chat.** `GET /api/documents/:id` enforces access via `authorize()`
 (owner session **or** a valid, unrevoked, unexpired share token). The viewer
-loads the PDF from `GET /api/documents/:id/file` (proxied from R2), the summary,
-the comment thread (re-fetched every 5 s), and the actor's own chat history.
+loads the PDF from `GET /api/documents/:id/file` (proxied through the Worker), the
+summary, the comment thread (re-fetched every 5 s), and the actor's own chat history.
 `POST /api/documents/:id/chat` retrieves the most relevant chunks, streams a
 grounded answer from Gemini, verifies its citations, and persists the turn.
 
@@ -325,8 +325,8 @@ run exits non-zero below an 85 % pass rate so it can gate CI. Space calls with
 - **Response headers** — `X-Content-Type-Options: nosniff`,
   `Referrer-Policy: no-referrer`, a restrictive `Permissions-Policy`, and
   `private, no-store` on file and API responses.
-- **Deletion** is real — removing a document deletes the R2 object and cascades
-  chunks, shares, comments and chat history in D1.
+- **Deletion** is real — removing a document deletes the stored PDF bytes and
+  cascades chunks, shares, comments and chat history in D1.
 
 ---
 
@@ -345,6 +345,7 @@ SQLite via D1; schema in `db/schema.ts`, migration in `drizzle/`.
 | `messages` | chat turns keyed by `(document_id, actor_id)`; `sources` JSON |
 | `password_resets` | single-use `token_hash` → `user_id`, `expires_at` |
 | `rate_limits` | fixed-window counters |
+| `blobs` | PDF bytes when no R2 bucket is bound — `(key, ordinal)` rows, ~900 KB each |
 
 ---
 
@@ -414,9 +415,9 @@ npm run video       # records the walkthrough → clause-walkthrough.webm
 
 ## Deployment
 
-Runs on **Cloudflare Workers** (free tier is enough), so the deployed URL is
-served from Cloudflare's global edge with no region configuration. Free-tier
-D1 and R2 back it.
+Runs on **Cloudflare Workers** on the global edge. The whole thing fits the free
+tier — Workers + D1, **no payment method required**. (R2 is used automatically if
+the account has it; otherwise PDF bytes live in D1.)
 
 ### One command
 
@@ -424,29 +425,23 @@ Set these (shell env, or a git-ignored `.dev.vars`) and run `npm run deploy:cf`:
 
 | Variable | | |
 |---|---|---|
-| `CLOUDFLARE_API_TOKEN` | required | token with **Workers Scripts**, **D1**, and **R2 Storage** = *Edit* ([create one](https://dash.cloudflare.com/profile/api-tokens)) |
-| `CLOUDFLARE_ACCOUNT_ID` | required | from the Cloudflare dashboard URL / Workers overview |
+| `CLOUDFLARE_API_TOKEN` | required | token with **Workers Scripts** + **D1** = *Edit* (add **R2 Storage** = *Edit* to use R2) — [create one](https://dash.cloudflare.com/profile/api-tokens) |
+| `CLOUDFLARE_ACCOUNT_ID` | required | the 32-hex id in the dashboard URL |
 | `GEMINI_API_KEY` | required | set as a Worker **secret**, never a var |
 | `RESEND_API_KEY`, `EMAIL_FROM` | optional | enables share-invite emails |
 | `APP_URL` | optional | defaults to the deployed `*.workers.dev` origin |
 | `CF_WORKER_NAME` `CF_D1_NAME` `CF_R2_BUCKET` | optional | default `clause` / `clause-db` / `clause-files` |
 
-[`scripts/deploy-cloudflare.mjs`](scripts/deploy-cloudflare.mjs) then builds,
-creates the D1 database and R2 bucket if they don't exist, applies the schema on
-the first run, `wrangler deploy`s, and pushes `GEMINI_API_KEY` (and
-`RESEND_API_KEY`) as Worker secrets. Re-running it redeploys; the schema step is
-skipped once the tables exist.
-
-If you'd rather create the resources yourself, `npx wrangler login`, then
-`wrangler d1 create` / `wrangler r2 bucket create` with the names above — the
-deploy script picks up whatever already exists.
+[`scripts/deploy-cloudflare.mjs`](scripts/deploy-cloudflare.mjs) builds, creates
+the D1 database (and an R2 bucket if R2 is enabled on the account), applies the
+migrations, `wrangler deploy`s, and pushes `GEMINI_API_KEY` (and `RESEND_API_KEY`)
+as Worker secrets. Re-running redeploys; applied migrations are skipped.
 
 ### Managed hosting
 
 `.openai/hosting.json` also lets the project deploy through a managed host that
-provisions the D1/R2 resources and applies migrations from `npm run build`'s
-output. Runtime variables are set in that host's project settings instead of via
-`wrangler secret`.
+provisions D1 and applies migrations from `npm run build`'s output. Runtime
+variables are set in that host's project settings instead of via `wrangler secret`.
 
 ---
 
@@ -462,6 +457,7 @@ lib/
     security.ts           bcrypt, sessions, CSRF, rate limiting, authorize()
     documents.ts          upload, text extraction, map-reduce summary
     ai.ts                 Gemini client (generate / embed / stream) + SSE decoder
+    storage.ts            PDF byte storage — D1 by default, R2 if a bucket is bound
     email.ts              Resend
     runtime.ts            env + D1 helpers
   retrieval.ts            chunking, BM25, segmentation, cosine  (framework-free, unit-tested)
@@ -495,6 +491,10 @@ tests/
   "find it by meaning" matters, so that's where the embeddings are.
 - **Raw SQL on the hot path**, Drizzle for the schema and migrations — small,
   predictable queries without an ORM query builder in the request path.
+- **PDF bytes in D1 by default.** Keeps the deployment on one free datastore with
+  no payment method; bytes are chunked to stay under D1's 2 MB value cap. The
+  `storage.ts` interface switches to R2 the moment a `BUCKET` binding exists —
+  the right move for real scale, but not needed for this.
 - **Guest identity is cookie-based**, so a guest's chat history is per-browser.
   A shared review link is intentionally low-friction, not an account.
 

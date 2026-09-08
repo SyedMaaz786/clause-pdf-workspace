@@ -1,5 +1,5 @@
 import { env } from 'cloudflare:workers';
-export type Runtime = { DB: D1Database; BUCKET: R2Bucket; GEMINI_API_KEY?: string; GEMINI_MODEL?: string; GEMINI_EMBEDDING_MODEL?: string; RESEND_API_KEY?: string; EMAIL_FROM?: string; APP_URL?: string };
+export type Runtime = { DB: D1Database; BUCKET?: R2Bucket; GEMINI_API_KEY?: string; GEMINI_MODEL?: string; GEMINI_EMBEDDING_MODEL?: string; RESEND_API_KEY?: string; EMAIL_FROM?: string; APP_URL?: string };
 export const runtime = () => env as unknown as Runtime;
 export function database() { const db = runtime().DB; if (!db) throw new HttpError(503, 'The workspace database is temporarily unavailable. Please try again.'); return db; }
 export class HttpError extends Error { constructor(public status: number, message: string) { super(message); } }
