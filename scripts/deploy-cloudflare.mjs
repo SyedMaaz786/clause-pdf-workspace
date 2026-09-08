@@ -27,6 +27,8 @@ if (need.length) { console.error(`\nMissing required env: ${need.join(', ')}\n`)
 const worker = env.CF_WORKER_NAME || 'clause';
 const d1Name = env.CF_D1_NAME || 'clause-db';
 const r2Name = env.CF_R2_BUCKET || 'clause-files';
+// A local APP_URL (from .dev.vars) is meaningless in production — let the deploy fill it in.
+const appUrlEnv = /localhost|127\.0\.0\.1/.test(env.APP_URL || '') ? '' : env.APP_URL;
 const wrangler = (args, opts = {}) => execFileSync('npx', ['wrangler', ...args], { shell: process.platform === 'win32', encoding: 'utf8', stdio: ['pipe', 'pipe', 'inherit'], ...opts });
 const step = msg => console.log(`\n> ${msg}`);
 
@@ -77,10 +79,10 @@ const patch = appUrl => {
 const deploy = () => wrangler(['deploy'], { cwd: 'dist/server' });
 
 step('Deploying');
-patch(env.APP_URL);
+patch(appUrlEnv);
 let out = deploy();
 const url = (out.match(/https:\/\/[\w.-]+\.workers\.dev/) || [])[0];
-if (url && !env.APP_URL) { step('Setting APP_URL to the deployed origin'); patch(url); out = deploy(); }
+if (url && !appUrlEnv) { step('Setting APP_URL to the deployed origin'); patch(url); out = deploy(); }
 
 step('Setting Worker secrets');
 const putSecret = (name, value) => wrangler(['secret', 'put', name, '--name', worker], { input: value, stdio: ['pipe', 'inherit', 'inherit'] });
