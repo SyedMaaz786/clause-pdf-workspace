@@ -8,24 +8,29 @@ function config() {
 }
 async function call(method: string, payload: unknown, model?: string) {
   const c = config();
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model || c.model}:${method}${method === 'streamGenerateContent' ? '?alt=sse' : ''}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': c.key }, body: JSON.stringify(payload), signal: AbortSignal.timeout(55000),
-  });
-  if (!response.ok) {
-    console.error('ai_provider_error', { status: response.status, method });
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model || c.model}:${method}${method === 'streamGenerateContent' ? '?alt=sse' : ''}`;
+  // Free-tier flash models return 503 "high demand" and 429 in short bursts; ride through them.
+  for (let attempt = 0; ; attempt++) {
+    const response = await fetch(url, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': c.key }, body: JSON.stringify(payload), signal: AbortSignal.timeout(55000),
+    });
+    if (response.ok) return response;
+    const retryable = response.status === 503 || response.status === 429;
+    if (retryable && attempt < 3) { await new Promise(r => setTimeout(r, 700 * 2 ** attempt)); continue; }
+    console.error('ai_provider_error', { status: response.status, method, attempt });
     throw new HttpError(response.status === 429 ? 429 : 502, response.status === 429 ? 'The AI provider is busy or its quota is exhausted. Please retry shortly.' : 'The AI provider could not complete this request. Please retry.');
   }
-  return response;
 }
 export async function generate(prompt: string, jsonOutput = false) {
   const response = await call('generateContent', {
     systemInstruction: { parts: [{ text: SYSTEM }] }, contents: [{ role: 'user', parts: [{ text: prompt }] }],
     generationConfig: { temperature: .15, maxOutputTokens: 1800, thinkingConfig: { thinkingBudget: 0 }, ...(jsonOutput ? { responseMimeType: 'application/json' } : {}) },
   });
-  const data = await response.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-  const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('');
+  const data = await response.json() as { candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[] };
+  const text = data.candidates?.[0]?.content?.parts?.filter(p => !p.thought).map(p => p.text || '').join('');
   if (!text) throw new HttpError(502, 'The AI provider returned an empty response. Please retry.');
-  return text;
+  // Tolerate a ```json fence some models add even in JSON mode.
+  return jsonOutput ? text.replace(/^\s*```(?:json)?\s*|\s*```\s*$/g, '') : text;
 }
 export async function embed(text: string, query = false): Promise<number[]> {
   const model = runtime().GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001';
@@ -52,8 +57,8 @@ export async function* providerTokens(body: ReadableStream<Uint8Array>) {
       for (const line of lines) {
         if (!line.startsWith('data:')) continue;
         const raw = line.slice(5).trim(); if (!raw || raw === '[DONE]') continue;
-        const data = JSON.parse(raw) as { candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[] };
-        for (const part of data.candidates?.[0]?.content?.parts || []) if (part.text) yield part.text;
+        const data = JSON.parse(raw) as { candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] }; finishReason?: string }[] };
+        for (const part of data.candidates?.[0]?.content?.parts || []) if (part.text && !part.thought) yield part.text;
       }
       if (done) break;
     }

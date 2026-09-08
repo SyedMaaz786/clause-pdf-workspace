@@ -79,7 +79,7 @@ video shows them populated.</sub>
 | Runtime | **Cloudflare Workers** | Globally distributed at the edge — the deployed URL is fast everywhere with no region config. |
 | Database | **Cloudflare D1** (SQLite) + **Drizzle** | Zero-ops SQL that lives next to the Worker. Drizzle defines the schema and generates migrations; hot-path queries use a thin typed wrapper over prepared statements. |
 | PDF byte storage | **D1** by default; **R2** if a bucket is bound | Behind a small `storage.ts` interface. D1 keeps the deploy on one free datastore (bytes chunked to stay under D1's 2 MB value cap); bind an R2 bucket as `BUCKET` and it's used instead. Served with `private, no-store`. |
-| LLM | **Google Gemini** — `gemini-2.5-flash` (summary + chat), `gemini-embedding-001` (search) | Generous free tier, fast, native SSE streaming, JSON-mode for structured summaries. |
+| LLM | **Google Gemini** — a `flash` model for summary + chat, `gemini-embedding-001` for search | Fast, native SSE streaming, JSON-mode for structured summaries. Model is one env var (`GEMINI_MODEL`); the client tolerates thinking-model quirks and retries transient 429/503s. |
 | PDF text | **unpdf** (server) | Pure-JS `pdf.js` build that runs inside a Worker isolate — page-by-page extraction with a bounded memory footprint. |
 | PDF rendering | **pdf.js** (`pdfjs-dist`, browser) | Canvas + selectable text layer; the raw file is always proxied through the Worker with an access check, never served from a public URL. |
 | Email | **Resend** (optional) | Simple HTTP API; entirely optional. |
@@ -147,15 +147,16 @@ retrieval, framework-free and unit-tested).
 
 | Task | Model | Notes |
 |------|-------|-------|
-| Summary + key facts | `gemini-2.5-flash` | `temperature 0.15`, `thinkingBudget 0`, JSON response mode for the final reduce. |
-| Chat answers | `gemini-2.5-flash` | `temperature 0.15`, streamed via `streamGenerateContent?alt=sse`. |
+| Summary + key facts | `flash` (`GEMINI_MODEL`) | `temperature 0.15`, `thinkingBudget 0`, JSON response mode for the final reduce. |
+| Chat answers | `flash` (`GEMINI_MODEL`) | `temperature 0.15`, streamed via `streamGenerateContent?alt=sse`. |
 | Semantic search | `gemini-embedding-001` | 768-dim, `RETRIEVAL_DOCUMENT` at index time / `RETRIEVAL_QUERY` at search time. |
 
 Low temperature throughout — this is an extraction task, not a creative one.
 Thinking budget is disabled for latency; the work is retrieval, not reasoning.
-The chat/summary model is one env var (`GEMINI_MODEL`) — the recorded eval used
-`gemini-2.5-flash`; the public demo runs `gemini-2.5-flash-lite` to stay well
-inside the free tier while reviewers try it.
+The recorded eval below ran on `gemini-2.5-flash`; the live demo runs
+`gemini-3.5-flash` (Google now caps the free tier at ~20 requests/day *per
+model*, so the demo may briefly rate-limit under load — `ai.ts` retries 429/503
+with backoff, and `GEMINI_MODEL` points it at any Gemini model).
 
 ### Summary pipeline
 
@@ -381,7 +382,7 @@ runtime env / secrets.
 | Variable | Required | Default | Purpose |
 |----------|----------|---------|---------|
 | `GEMINI_API_KEY` | for AI features | – | Google AI Studio key. Without it, summary/chat/search are disabled and the UI says so. |
-| `GEMINI_MODEL` | no | `gemini-2.5-flash` | Chat + summary model. |
+| `GEMINI_MODEL` | no | `gemini-2.5-flash` | Chat + summary model — any Gemini model id (the live demo uses `gemini-3.5-flash`). |
 | `GEMINI_EMBEDDING_MODEL` | no | `gemini-embedding-001` | Semantic-search embeddings. |
 | `RESEND_API_KEY` | no | – | Enables "email an invite when sharing". Omit to disable email entirely. |
 | `EMAIL_FROM` | with Resend | – | Verified sender, e.g. `Clause <noreply@yourdomain.com>`. |
