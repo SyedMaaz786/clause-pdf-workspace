@@ -1,6 +1,8 @@
-// Copies the Playwright recording to clause-walkthrough.webm in the repo root.
+// Copies the Playwright recording to recorded_video.webm in the repo root.
 import { readdirSync, statSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
+
+const OUT = 'recorded_video.webm';
 
 const root = 'test-results';
 let newest = null;
@@ -15,5 +17,5 @@ const walk = dir => {
 try { walk(root); } catch { /* no test-results */ }
 
 if (!newest) { console.error('No .webm recording found under test-results/.'); process.exit(1); }
-copyFileSync(newest.path, 'clause-walkthrough.webm');
-console.log('→ clause-walkthrough.webm');
+copyFileSync(newest.path, OUT);
+console.log('→ ' + OUT);

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import path from 'node:path';
 
 // A single continuous journey, paced to be watched. Records to test-results/;
-// `npm run video` copies the clip to clause-walkthrough.webm in the repo root.
+// `npm run video` copies the clip to recorded_video.webm in the repo root.
 // Point it at a deployment with PLAYWRIGHT_BASE_URL, or let it start a local dev
 // server (needs GEMINI_API_KEY in .dev.vars for the AI panels to populate).
 

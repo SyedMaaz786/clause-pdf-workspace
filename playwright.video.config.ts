@@ -3,7 +3,7 @@ import { defineConfig } from '@playwright/test';
 // Records the end-to-end walkthrough. Target a deployment with
 // PLAYWRIGHT_BASE_URL, or omit it to start a local dev server (which needs
 // GEMINI_API_KEY in .dev.vars). `npm run video` runs this and lifts the clip
-// to clause-walkthrough.webm.
+// to recorded_video.webm.
 const remote = process.env.PLAYWRIGHT_BASE_URL;
 
 export default defineConfig({

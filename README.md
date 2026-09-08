@@ -5,7 +5,7 @@ cites the page it answered from, share the document with a link that needs no
 account, and review it together with threaded comments.
 
 > **Live demo:** https://clause.syedmaaz786.workers.dev
-> **Walkthrough video:** _<add your Loom link here>_ · a recorded end-to-end run is in [`clause-walkthrough.webm`](clause-walkthrough.webm) / `npm run video`
+> **Walkthrough video:** _<add your Loom link here>_ · a recorded end-to-end run is in [`recorded_video.webm`](recorded_video.webm) / `npm run video`
 
 Built for the SpotDraft AI Intern take-home — the required features plus all
 five optional ones, with a test suite that covers them.
@@ -400,7 +400,7 @@ npm run lint        # eslint
 npm test            # domain unit tests + API integration suite
 npm run eval        # live AI answer-quality eval (needs GEMINI_API_KEY)
 npx playwright test # end-to-end browser flows (desktop + mobile)
-npm run video       # records the walkthrough → clause-walkthrough.webm
+npm run video       # records the walkthrough → recorded_video.webm
 ```
 
 | Suite | Runner | Covers |
