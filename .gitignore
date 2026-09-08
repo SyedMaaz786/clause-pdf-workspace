@@ -60,3 +60,4 @@ public/pdf.worker.min.mjs
 *.tar.gz
 recorded_video*.webm
 clause-walkthrough*.webm
+/submission/
