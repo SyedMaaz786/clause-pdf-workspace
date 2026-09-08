@@ -1,0 +1,32 @@
+/* Contrast stays consistent across the workspace and reading room. */
+.summary-label h2,.chat-empty h2,.key-facts strong{color:#373248}
+.overview-summary .markdown{color:#655d74}
+.summary-pending,.summary-pending p{color:#766786}
+.summary-toggle,.overview-title p{color:#81748d}
+.key-facts>button>span,.key-facts small{color:#877896}
+.viewer-back,.viewer-file-name,.private-indicator{color:#777081}
+.chat-privacy,.chat-tip{color:#81758e}
+.chat-empty>p,.suggested-questions button{color:#746581}
+.review-tab-list [data-slot="tabs-trigger"]{color:#82758e}
+.review-tab-list [data-slot="tabs-trigger"][data-state="active"]{color:#7853b5}
+.review-tab-list [data-slot="tabs-trigger"][data-state="active"]{border-bottom-color:#8d65c8!important}
+.chat-message .markdown,.chat-message.user .markdown,.comment .markdown{color:#62596f}
+.message-heading strong,.comment-heading strong{color:#4d435a}
+.message-heading>small,.comment-heading small{color:#8c7e98}
+.citation-inline,.source-chips button{color:#79569d}
+.chat-composer textarea,.comment-editor textarea{color:#5d506c}
+.chat-composer textarea::placeholder,.comment-editor textarea::placeholder{color:#9988a6}
+.chat-composer>small,.comment-composer>small{color:#92839e}
+.send-button,.format-toolbar>.primary-button{background:#8054b5}
+.send-button:hover,.format-toolbar>.primary-button:hover{background:#7145a4}
+.comment-intro>span,.comment-actions{color:#80698f}
+.comment-intro small,.format-toolbar>span,.comment-heading>button{color:#9177a2}
+.comments-empty h3{color:#655070}.comments-empty p{color:#8a7797}
+.pdf-toolbar-label,.page-control,.zoom-control,.pdf-toolbar,.pdf-page-caption{color:#887791}
+.share-explainer p,.share-expiry label{color:#81718f}
+.created-link>label,.share-row small,.guide-steps p{color:#83718f}
+.share-row>button{color:#ad5e77}
+.mobile-pane-switch button{color:#8e789f}
+.mobile-pane-switch button.active{color:#7c559f;border-bottom-color:#9b70be}
+.guest-badge{color:#86689e}
+.overview-summary .markdown{color:#655d74!important}

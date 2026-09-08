@@ -1,0 +1,15 @@
+# Copy this file to `.dev.vars` for local development:
+#     cp .dev.vars.example .dev.vars
+#
+# The Cloudflare Vite plugin loads `.dev.vars` into the Worker `env` when you
+# run `npm run dev`. Same keys as `.env.example` — see that file for details.
+# `.dev.vars` is git-ignored; never commit real keys.
+
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash
+GEMINI_EMBEDDING_MODEL=gemini-embedding-001
+
+RESEND_API_KEY=
+EMAIL_FROM=Clause <noreply@example.com>
+
+APP_URL=http://localhost:5173

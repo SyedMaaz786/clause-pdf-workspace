@@ -1,0 +1,25 @@
+'use client';
+import { useCallback, useEffect, useState } from 'react';
+import { Check, Copy, Link2, Loader2, Mail, ShieldCheck, UserPlus } from 'lucide-react';
+import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { api, date, post } from '@/lib/client';
+import type { Share } from '@/lib/contracts';
+export function ShareDialog({ open, setOpen, documentId, filename }: { open: boolean; setOpen: (open: boolean) => void; documentId: string; filename: string }) {
+  const [shares, setShares] = useState<Share[]>([]), [emailConfigured, setEmailConfigured] = useState(false), [label, setLabel] = useState(''), [email, setEmail] = useState(''), [days, setDays] = useState('7'), [url, setUrl] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [copied, setCopied] = useState(false);
+  const [timestamp, setTimestamp] = useState(0);
+  const load = useCallback(async () => { const data = await api<{ shares: Share[]; emailConfigured: boolean }>(`/api/documents/${documentId}/shares`); setShares(data.shares); setEmailConfigured(data.emailConfigured); setTimestamp(Date.now()); }, [documentId]);
+  useEffect(() => { if (open) void Promise.resolve().then(load).catch(e => setError(e.message)); }, [open, load]);
+  async function create() {
+    setBusy(true); setError(''); setUrl(''); setCopied(false);
+    try { const result = await post<{ url: string; emailSent: boolean; emailError?: string }>(`/api/documents/${documentId}/shares`, { label, days: Number(days), ...(email ? { email } : {}) }); setUrl(result.url); await load(); if (result.emailError) setError(result.emailError); else toast.success(result.emailSent ? 'Invitation sent' : 'Secure link created'); }
+    catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+  }
+  async function revoke(share: Share) { try { await api(`/api/documents/${documentId}/shares/${share.id}`, { method: 'DELETE' }); await load(); setUrl(''); toast.success('Link revoked. It can no longer access this document.'); } catch (e) { setError((e as Error).message); } }
+  return <Dialog open={open} onOpenChange={setOpen}><DialogContent className="clause-dialog share-dialog"><DialogHeader><span className="dialog-icon"><UserPlus size={24} /></span><DialogTitle>Bring someone onto the same page.</DialogTitle><DialogDescription>{filename}</DialogDescription></DialogHeader><div className="share-explainer"><ShieldCheck size={19} /><p>Anyone with an active link can read, chat, and comment. No account needed. Revoke access whenever you like.</p></div><div className="field"><Label htmlFor="invite-label">Invitation name</Label><Input id="invite-label" value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g. Finance review" maxLength={100} /></div>{emailConfigured && <div className="field"><Label htmlFor="invite-email">Send by email <span className="optional">(optional)</span></Label><Input id="invite-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="reviewer@company.com" /></div>}<div className="share-expiry"><Label>Link expires after</Label><Select value={days} onValueChange={setDays}><SelectTrigger aria-label="Link expiry" className="expiry-select"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">1 day</SelectItem><SelectItem value="7">7 days</SelectItem><SelectItem value="30">30 days</SelectItem></SelectContent></Select></div><Button className="primary-button full-width" disabled={busy} onClick={() => void create()}>{busy ? <Loader2 className="spin" /> : email ? <Mail size={17} /> : <Link2 size={17} />}{email ? 'Create link & send invitation' : 'Create secure link'}</Button>{url && <div className="created-link"><Label htmlFor="share-url">Copy this link now — it’s shown only once</Label><div><Input id="share-url" value={url} readOnly onFocus={e => e.target.select()} /><Button aria-label="Copy share link" variant="outline" onClick={async () => { try { await navigator.clipboard.writeText(url); setCopied(true); } catch { toast.error('Select the link and copy it manually.'); } }}>{copied ? <Check size={16} /> : <Copy size={16} />}</Button></div></div>}{error && <div className="error-message" role="alert">{error}</div>}{shares.length > 0 && <div className="active-shares"><h3>Invitations <span>{shares.filter(s => !s.revoked_at && s.expires_at > timestamp).length} active</span></h3>{shares.map(s => <div className="share-row" key={s.id}><span className="share-row-icon"><Link2 size={16} /></span><div><strong>{s.label}</strong><small>{s.revoked_at ? 'Revoked' : s.expires_at < timestamp ? 'Expired' : `Expires ${date(s.expires_at)}`}</small></div>{!s.revoked_at && s.expires_at > timestamp && <button onClick={() => void revoke(s)} aria-label={`Revoke ${s.label}`}>Revoke</button>}</div>)}</div>}</DialogContent></Dialog>;
+}
+
