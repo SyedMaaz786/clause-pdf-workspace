@@ -11,10 +11,12 @@
     "build": "node scripts/prepare-assets.mjs && vinext build",
     "start": "vinext start",
     "test": "tsx --test tests/domain/*.test.ts && node tests/api.test.mjs",
+    "eval": "node tests/eval/run.mjs",
     "lint": "eslint app components/clause lib worker scripts tests --ignore-pattern dist",
     "db:generate": "drizzle-kit generate",
     "typecheck": "tsc --noEmit",
-    "db:migrate": "node scripts/migrate-local.mjs"
+    "db:migrate": "node scripts/migrate-local.mjs",
+    "deploy:cf": "node scripts/deploy-cloudflare.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

@@ -1,0 +1,98 @@
+{
+  "document": "public/samples/service-agreement.pdf",
+  "note": "Northstar / Meridian Master Services Agreement — 3 pages. Expectations are derived from the document text, not model output.",
+  "items": [
+    {
+      "id": "parties",
+      "question": "Who are the two parties to this agreement?",
+      "expect": { "mustCite": [1], "mustInclude": ["Northstar Labs", "Meridian Studio"] }
+    },
+    {
+      "id": "timeline",
+      "question": "When does the project start and when is it due to finish?",
+      "expect": { "mustCite": [1], "mustInclude": ["September 15", "December 15"] }
+    },
+    {
+      "id": "feedback-window",
+      "question": "How quickly must the client return feedback?",
+      "expect": { "mustCite": [1], "mustInclude": ["five business days"] }
+    },
+    {
+      "id": "scope-change",
+      "question": "Can the scope be changed with a phone call?",
+      "expect": { "mustCite": [1], "mustInclude": ["written change order"], "mustNotInclude": ["yes, a phone call"] }
+    },
+    {
+      "id": "total-fee",
+      "question": "What is the total fee for the project?",
+      "expect": { "mustCite": [2], "mustInclude": ["48,000"] }
+    },
+    {
+      "id": "payment-schedule",
+      "question": "How is that fee split into installments?",
+      "expect": { "mustCite": [2], "mustInclude": ["40%", "30%", "signing"] }
+    },
+    {
+      "id": "acceptance-window",
+      "question": "How long does the client have to flag problems with a deliverable after delivery?",
+      "expect": { "mustCite": [2], "mustInclude": ["ten business days"] }
+    },
+    {
+      "id": "confidentiality-duration",
+      "question": "How long do the confidentiality obligations last after the contract ends?",
+      "expect": { "mustCite": [2], "mustInclude": ["two years"] }
+    },
+    {
+      "id": "ip-ownership",
+      "question": "Who owns the deliverables, and when does that ownership transfer?",
+      "expect": { "mustCite": [2], "mustInclude": ["full payment"] }
+    },
+    {
+      "id": "termination-notice",
+      "question": "How much notice does a party need to give to terminate for convenience?",
+      "expect": { "mustCite": [3], "mustInclude": ["30 days"] }
+    },
+    {
+      "id": "liability-cap",
+      "question": "Is there a cap on liability, and are there any carve-outs?",
+      "expect": { "mustCite": [3], "mustInclude": ["fees paid"] }
+    },
+    {
+      "id": "governing-law",
+      "question": "Which jurisdiction's law governs this agreement?",
+      "expect": { "mustCite": [3], "mustInclude": ["New York"] }
+    },
+    {
+      "id": "data-deletion",
+      "question": "What happens to the client's data after the engagement ends?",
+      "expect": { "mustCite": [3], "mustInclude": ["30 days"] }
+    },
+    {
+      "id": "memory-followup",
+      "question": "What is the termination notice period?",
+      "followUps": ["And does anything in the contract survive that termination?"],
+      "expect": { "mustCite": [3], "mustInclude": ["confidentiality"] }
+    },
+    {
+      "id": "memory-followup-numeric",
+      "question": "What is the total project fee?",
+      "followUps": ["How much of that is due at signing?"],
+      "expect": { "mustCite": [2], "mustInclude": ["19,200"] }
+    },
+    {
+      "id": "refuse-weather",
+      "question": "What will the weather be like in New York next week?",
+      "expect": { "type": "refusal" }
+    },
+    {
+      "id": "refuse-noncompete",
+      "question": "Does this agreement include a non-compete or non-solicitation clause?",
+      "expect": { "type": "refusal" }
+    },
+    {
+      "id": "refuse-subscription-price",
+      "question": "What is the annual software subscription price under this contract?",
+      "expect": { "type": "refusal" }
+    }
+  ]
+}
